@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"api-boilerplate/database"
 	"api-boilerplate/models/dto"
 	"github.com/go-chi/jwtauth/v5"
 )
 
-func login(w http.ResponseWriter, r *http.Request) {
+func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var request dto.LoginRequest
@@ -29,19 +28,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if username exists
-	databaseUser, userExists := database.GetUserFromUsername(request.Username)
+	user, userExists := s.UserService.GetUserFromUsername(r.Context(), request.Username)
 	if !userExists {
 		JSONError(w, "Invalid login data.", http.StatusNotFound)
 		return
 	}
 
-	jsonDecodeError = CheckPasswordHash(request.Password, databaseUser.Password)
+	jsonDecodeError = CheckPasswordHash(request.Password, user.Password)
 	if jsonDecodeError != nil {
 		JSONError(w, "Invalid login data.", http.StatusBadRequest)
 		return
 	}
 
-	var claims = map[string]interface{}{"id": databaseUser.ID, "username": databaseUser.Username}
+	var claims = map[string]interface{}{"id": user.ID, "username": user.Username}
 
 	jwtauth.SetExpiryIn(claims, 7*24*time.Hour)
 
@@ -50,7 +49,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var serverResponse dto.UserTokenResponse
 	serverResponse.User = dto.UserRequest{
 		Token:    tokenString,
-		Username: databaseUser.Username,
+		Username: user.Username,
 	}
 
 	jsonDecodeError = json.NewEncoder(w).Encode(serverResponse)
@@ -60,7 +59,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func register(w http.ResponseWriter, r *http.Request) {
+func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var request dto.LoginRequest
 
@@ -77,7 +76,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if username exists
-	_, userExists := database.GetUserFromUsername(request.Username)
+	_, userExists := s.UserService.GetUserFromUsername(r.Context(), request.Username)
 	if userExists {
 		JSONError(w, "User already exists.", http.StatusBadRequest)
 		return
@@ -89,13 +88,19 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseUser, err := database.CreateUser(request.Username, hashedPassword)
+	userID, err := s.UserService.CreateUser(r.Context(), request.Username, hashedPassword)
 	if err != nil {
 		JSONError(w, "Could not create user.", http.StatusInternalServerError)
 		return
 	}
 
-	var claims = map[string]interface{}{"id": databaseUser.ID, "username": databaseUser.Username}
+	user, err := s.UserService.GetUser(r.Context(), userID)
+	if err != nil {
+		JSONError(w, "Could not create user.", http.StatusInternalServerError)
+		return
+	}
+
+	var claims = map[string]interface{}{"id": user.ID, "username": user.Username}
 
 	jwtauth.SetExpiryIn(claims, 7*24*time.Hour)
 
@@ -104,7 +109,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	var serverResponse dto.UserTokenResponse
 	serverResponse.User = dto.UserRequest{
 		Token:    tokenString,
-		Username: databaseUser.Username,
+		Username: user.Username,
 	}
 
 	err = json.NewEncoder(w).Encode(serverResponse)
@@ -112,20 +117,6 @@ func register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-}
-
-func getUser(w http.ResponseWriter, r *http.Request) {
-	userID := readUserID(r.Context())
-
-	user, err := database.GetUser(userID)
-	if err != nil {
-		JSONError(w, "could not get user.", http.StatusInternalServerError)
-		log.Println("could not get user", err)
-		return
-	}
-
-	userResp := dto.DatabaseUserToUserResponse(user)
-	json.NewEncoder(w).Encode(userResp)
 }
 
 func readUserID(ctx context.Context) int {

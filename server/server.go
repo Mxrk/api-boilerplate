@@ -2,22 +2,32 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
-	"api-boilerplate/config"
+	"api-boilerplate/models/domain"
 	"api-boilerplate/models/dto"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
-func InitServer() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+type Server struct {
+	server *http.Server
+	router *chi.Mux
+
+	UserService domain.UserService
+}
+
+func InitServer() *Server {
+	s := &Server{
+		server: &http.Server{},
+		router: chi.NewRouter(),
+	}
+
+	s.router.Use(middleware.Logger)
 
 	// CORS settings for local testing
-	r.Use(cors.Handler(cors.Options{
+	s.router.Use(cors.Handler(cors.Options{
 		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
 		AllowedOrigins: []string{"https://*", "http://*"},
 		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
@@ -29,7 +39,7 @@ func InitServer() {
 	}))
 
 	// Protected routes
-	r.Group(func(r chi.Router) {
+	s.router.Group(func(r chi.Router) {
 		r.Use(Verifier(tokenAuth))
 
 		r.Use(Authenticator)
@@ -38,15 +48,17 @@ func InitServer() {
 	})
 
 	// Public routes
-	r.Get("/health", health)
-	r.Post("/login", login)
-	r.Post("/register", register)
+	s.router.Get("/health", health)
+	s.router.Post("/login", s.login)
+	s.router.Post("/register", s.register)
 
-	log.Println("Server started on port " + config.Config.Server.Port)
-	err := http.ListenAndServe(":"+config.Config.Server.Port, r)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return s
+}
+
+// StartServer validates the server options and begins listening on the bind address.
+func (s *Server) StartServer(adr string) (err error) {
+	return http.ListenAndServe(adr, s.router)
+
 }
 
 // JSONError is a helper function which is creating an error as json.

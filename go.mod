@@ -10,6 +10,7 @@ require (
 	github.com/lestrrat-go/jwx/v2 v2.0.6
 	github.com/lib/pq v1.10.7
 	github.com/rubenv/sql-migrate v1.3.1
+	golang.org/x/crypto v0.5.0
 )
 
 require (
@@ -21,5 +22,4 @@ require (
 	github.com/lestrrat-go/httprc v1.0.4 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.0 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
 )
