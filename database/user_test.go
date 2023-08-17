@@ -14,6 +14,7 @@ func (suite *TestSuite) TestUserService_CreateUser() {
 		log.Println(err)
 		return
 	}
+	defer tx.Rollback()
 
 	userID, err := createUser(ctx, tx, "test", "test")
 	if err != nil {
@@ -22,9 +23,6 @@ func (suite *TestSuite) TestUserService_CreateUser() {
 	}
 
 	assert.Equal(suite.T(), userID, 1, "they should be equal because it's the first user")
-
-	tx.Rollback()
-
 }
 
 func (suite *TestSuite) Test_getUser() {
@@ -34,6 +32,7 @@ func (suite *TestSuite) Test_getUser() {
 		log.Println(err)
 		return
 	}
+	defer tx.Rollback()
 
 	user, err := getUser(ctx, tx, 1)
 	if err != nil {
@@ -42,7 +41,4 @@ func (suite *TestSuite) Test_getUser() {
 	}
 
 	assert.Nil(suite.T(), user, "should be nil because no user exists")
-
-	err = tx.Rollback()
-	log.Println(err)
 }
