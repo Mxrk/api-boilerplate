@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	"api-boilerplate/models/domain"
 	"github.com/jmoiron/sqlx"
@@ -20,26 +19,25 @@ type DB struct {
 	cancel func()
 }
 
-// Tx wraps the SQL Tx object to provide a timestamp at the start of the transaction.
+// Tx wraps the SQL Tx object
 type Tx struct {
 	*sqlx.Tx
-	db  *DB
-	now time.Time
+	db *DB
 }
 
 // NewDB initials the database
-func NewDB(cfg domain.Cfg) *DB {
+func NewDB(cfg domain.Cfg, migrationsDir string) (*DB, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable timezone=CET",
 		cfg.Database.Host, cfg.Database.Port, cfg.Database.User, cfg.Database.Password, cfg.Database.Dbname)
 
 	db, err := sqlx.Connect("postgres", psqlInfo)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	migrations := &migrate.FileMigrationSource{
-		Dir: "database/migrations",
+		Dir: migrationsDir,
 	}
 
 	migrate.SetTable("migrations")
@@ -47,6 +45,7 @@ func NewDB(cfg domain.Cfg) *DB {
 	n, err := migrate.Exec(db.DB, "postgres", migrations, migrate.Up)
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 
 	log.Printf("Applied %d migrations!\n", n)
@@ -57,7 +56,8 @@ func NewDB(cfg domain.Cfg) *DB {
 	database.ctx, database.cancel = context.WithCancel(context.Background())
 	database.db = db
 	database.cfg = cfg
-	return database
+
+	return database, nil
 }
 
 type Queryable interface {
@@ -84,22 +84,16 @@ type Queryable interface {
 	MustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result
 }
 
-// BeginTx starts a transaction and returns a wrapper Tx type. This type
-// provides a reference to the database and a fixed timestamp at the start of
-// the transaction. The timestamp allows us to mock time during tests as well.
+// BeginTx starts a transaction and returns a wrapper Tx type.
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	tx, err := db.db.BeginTxx(ctx, opts)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
-	// Return wrapper Tx that includes the transaction start time.
 	return &Tx{
 		Tx: tx,
 		db: db,
 	}, nil
 }
-
-//func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-//	return db.db.GetContext(ctx, dest, query, args...)
-//}

@@ -5,7 +5,7 @@ create table public.users
     id           serial,
     username     text,
     password     text,
-    created_at   timestamp,
+    created_at   timestamp
 );
 
 create unique index users_username_uindex

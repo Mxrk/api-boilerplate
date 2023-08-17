@@ -20,9 +20,14 @@ type Main struct {
 // NewMain returns a new instance of Main.
 func NewMain() *Main {
 	cfg := config.InitConfig()
+	db, err := database.NewDB(cfg, "database/migrations")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &Main{
 		Config:     cfg,
-		DB:         database.NewDB(cfg),
+		DB:         db,
 		HTTPServer: server.InitServer(),
 	}
 }

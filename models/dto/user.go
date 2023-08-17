@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"api-boilerplate/database"
 )
 
 // LoginRequest is a struct for the login endpoint.
@@ -25,13 +23,4 @@ type UserResponse struct {
 	ID        int       `json:"id"`
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
-}
-
-// DatabaseUserToUserResponse db user to user response
-func DatabaseUserToUserResponse(user database.User) UserResponse {
-	return UserResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		CreatedAt: user.CreatedAt,
-	}
 }
