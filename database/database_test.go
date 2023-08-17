@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 
 	pool.MaxWait = 120 * time.Second
 	if err = pool.Retry(func() error {
-		intVar, err := strconv.Atoi(resource.GetPort("5432/tcp"))
+		port, err := strconv.Atoi(resource.GetPort("5432/tcp"))
 		if err != nil {
 			log.Fatalf("Could not convert port: %s", err)
 		}
@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 		var test = domain.Cfg{}
 		test.Server.Port = "8080"
 		test.Database.Host = "localhost"
-		test.Database.Port = intVar
+		test.Database.Port = port
 		test.Database.User = "user_name"
 		test.Database.Password = "secret"
 		test.Database.Dbname = "dbname"
